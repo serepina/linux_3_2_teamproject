@@ -7,9 +7,11 @@
 #include <errno.h>
 #include <signal.h>
 #include <malloc.h>
+#include <fcntl.h>
 
 int pipe_A(char *temp, char *temp2, char *temp3);
 int background(char *temp);
+int redirect_A(char *temp, char *temp2, char *temp3);
 
 int main()
 {
@@ -17,6 +19,7 @@ int main()
 	char *argv[50];
 	int narg;
 	pid_t pid;
+
 	//sigset_t blockset;
 	//sigemptyset(&blockset);
 	//sigaddset(&blockset,SIGINT);
@@ -85,6 +88,13 @@ int getargs(char *cmd, char **argv)
 			background(argv);
 			argv[0]=NULL;
 			argv[1]=NULL;
+		}
+		// 리다이렉터 구현
+		else if(!strcmp(argv[1],"<")||!strcmp(argv[1],">")){
+			redirect_A(argv[0], argv[1], argv[2]);
+			argv[0]=NULL;
+			argv[1]=NULL;
+			argv[2]=NULL;
 		}
 	}
 	return narg;
@@ -165,4 +175,75 @@ int pipe_A(char *temp, char *temp2, char *temp3){
 	close(fd[1]);
 	while(wait(NULL)!=-1);
 	return 0;
+}
+
+/*
+	리다이렉터 구현
+	cat     >   test.txt
+	cat     <   test.txt
+	인자1  인자2   인자3
+*/
+
+int redirect_A(char *temp, char *temp2, char *temp3){
+	int fd[2];
+	int fd_o;
+	char *a[2];
+	char *b[2];
+	int i=0;
+	int j=0;
+	int z=0;
+	pid_t pid;
+	int check_count = 0;
+
+	a[0]=temp;
+	a[1]=NULL;
+
+	b[0]=temp3;
+	b[1]=NULL;
+
+	if(!strcmp(temp2,"<")){
+		check_count=1;
+	}
+	else{
+		check_count=2;
+	}
+
+	if(check_count==1){
+		switch(fork()){
+			case -1:
+				perror("fork()");
+				break;
+			case 0:
+				fd_o=open(b[0],O_RDONLY);
+				if(fd_o==-1)
+					perror("error");
+				if(dup2(fd_o,STDIN_FILENO)==-1)
+					perror("fd_o error");
+				close(fd_o);
+				execvp(a[0],a);
+				break;
+			default:
+				wait(NULL);
+		}
+	}
+	if(check_count==2){
+		switch(fork()){
+			case -1:
+				perror("fork()");
+				break;
+			case 0:
+				fd_o = open(b[0],O_WRONLY | O_CREAT | O_TRUNC, 0644);
+				if(fd_o==-1)
+					perror("error filter\n");
+				if(dup2(fd_o,1)==-1){
+					perror("fd_o dur error\n");
+				}
+				close(fd_o);
+				execvp(a[0],a);
+				exit(0);
+				break;
+		}
+		return 0;
+	}
+
 }
