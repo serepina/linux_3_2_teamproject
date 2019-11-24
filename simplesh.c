@@ -14,7 +14,6 @@
 int pipe_A(char *temp, char *temp2, char *temp3);
 int background(char *temp);
 int redirect_A(char *temp, char *temp2, char *temp3);
-int getargs(char *cmd, char **argv);
 void handler(int sig);
 pid_t pid;
 
