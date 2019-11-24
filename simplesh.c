@@ -8,23 +8,27 @@
 #include <signal.h>
 #include <malloc.h>
 #include <fcntl.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 
 int pipe_A(char *temp, char *temp2, char *temp3);
 int background(char *temp);
 int redirect_A(char *temp, char *temp2, char *temp3);
+int getargs(char *cmd, char **argv);
+void handler(int sig);
+pid_t pid;
+
 
 int main()
 {
 	char buf[256];
 	char *argv[50];
 	int narg;
-	pid_t pid;
+	//pid_t pid;
 
-	//sigset_t blockset;
-	//sigemptyset(&blockset);
-	//sigaddset(&blockset,SIGINT);
-	//sigaddset(&blockset,SIGQUIT);
-	//sigprocmask(SIG_BLOCK,&blockset,NULL);
+	signal(SIGINT,handler);
+        signal(SIGTSTP,handler);
+	signal(SIGCHLD,handler);
 
 	while (1) {
 
@@ -69,6 +73,10 @@ int getargs(char *cmd, char **argv)
 			chdir(home);
 		}
 		system("pwd");
+	}
+	// 빈 문자열 처리
+	else if(argv[0] == '\n')){
+		break;
 	}
 	// 이외 명령어들 execvp로 전달 마지막인자 NULL 처리
 	else {
@@ -246,4 +254,29 @@ int redirect_A(char *temp, char *temp2, char *temp3){
 		return 0;
 	}
 
+}
+
+/*
+	signal handler
+	Ctrl+C, Ctrl+Z에 대한 작업 진행
+*/
+void handler(int sig){             //signal 핸들러
+	int status;
+	if(pid != 0){                //자식과 부모의 구분
+		switch(sig){
+			case SIGINT:
+				printf("Ctrl + c SIGINT\n");
+				break;
+			case SIGTSTP:
+				printf("Ctrl + z SIGTSTP\n");
+				kill(0,SIGCHLD); //stpt 받았을 때, 자신은 다시 run
+				break;
+			case SIGCONT:
+				printf("Restart rs SIGCONT\n");
+				break;
+			case SIGCHLD:
+				waitpid(-1, &status, WUNTRACED);
+				break;
+                }
+        }
 }
