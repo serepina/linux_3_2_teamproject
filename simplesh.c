@@ -10,11 +10,15 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <termios.h>
+#include <ctype.h>
 
 int pipe_A(char *temp, char *temp2, char *temp3);
 int background(char *temp);
 int redirect_A(char *temp, char *temp2, char *temp3);
+int getargs(char *cmd, char **argv);
 void handler(int sig);
+//static void sig_tstp(int signo);
 pid_t pid;
 
 
@@ -24,10 +28,10 @@ int main()
 	char *argv[50];
 	int narg;
 	//pid_t pid;
+	
 
 	signal(SIGINT,handler);
         signal(SIGTSTP,handler);
-	signal(SIGCHLD,handler);
 
 	while (1) {
 
@@ -74,8 +78,12 @@ int getargs(char *cmd, char **argv)
 		system("pwd");
 	}
 	// 빈 문자열 처리
-	else if(argv[0] == '\n')){
-		break;
+	else if(argv[0] == '\0'){
+		argv[0] = '\0';
+	}
+	// Ctrl C 처리
+	else if(argv[0] == SIGINT){
+		argv[0] = '\0';
 	}
 	// 이외 명령어들 execvp로 전달 마지막인자 NULL 처리
 	else {
@@ -264,18 +272,14 @@ void handler(int sig){             //signal 핸들러
 	if(pid != 0){                //자식과 부모의 구분
 		switch(sig){
 			case SIGINT:
-				printf("Ctrl + c SIGINT\n");
+				//printf("\n");
 				break;
 			case SIGTSTP:
 				printf("Ctrl + z SIGTSTP\n");
-				kill(0,SIGCHLD); //stpt 받았을 때, 자신은 다시 run
-				break;
-			case SIGCONT:
-				printf("Restart rs SIGCONT\n");
-				break;
-			case SIGCHLD:
 				waitpid(-1, &status, WUNTRACED);
+				kill(pid,SIGTSTP); //stpt 받았을 때, 자신은 다시 run
 				break;
                 }
         }
 }
+
