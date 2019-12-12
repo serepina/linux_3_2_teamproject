@@ -116,6 +116,13 @@ int main(int argc, char *argv[]) {
                 }
                 // 모든 채팅 참가자에게 메시지 방송
 				for (j = 0; j < client_num; j++){
+                    /*
+                    int send(int s, const void *msg, size_t len, int flags): 연결된 서버나 클라이언트로 데이터를 전송
+                    int s: 소켓 디스크립터
+                    void *msg: 전송할 데이터
+                    size_t len: 데이터의 바이트 단위 길이
+                    int flags: MSG_DONTWAIT - 전송할 준비가 전에 대기 상태가 필요하다면 기다리지 않고 -1을 반환하면서 복귀, MSG_NOSIGNAL - 상대방과 연결이 끊겼을 때, SIGPIPE 시그널을 받지 않도록 함
+                    */
 					send(csocket_list[j], buf, nbyte, 0);
                 }
 
@@ -212,10 +219,16 @@ int  tcp_listen(int host, int port, int backlog) {
 		exit(1);
 	}
 	// servaddr 구조체의 내용 세팅
-	bzero((char *)&servaddr, sizeof(servaddr));
+	bzero((char *)&servaddr, sizeof(servaddr)); // 원하는 메모리 영역을 '0'으로 초기화 (초기화를 수행할 메모리 영역의 시작주소, 시작 주소로부터 초기화를 수행할 크기)
 	servaddr.sin_family = AF_INET;
 	servaddr.sin_addr.s_addr = htonl(host);
 	servaddr.sin_port = htons(port);
+    /*
+    int bind(int sockfd, struct sockaddr *myaddr, socklen_t addrlen): 소켓에 IP주소와 포트번호를 지정해 줍니다. 이로서 소켓을 통신에 사용할 수 있도록 준비
+    int sockfd: 소켓 디스크립터
+    struct sockaddr *myaddr: 인터넷을 통해 통신하는 AF_INET인 경우에는 struct sockaddr_in을 사용, 시스템 내부 통신인 AF_UNIX인 경우에는 struct sockaddr을 사용
+    socklen_t addrlen: myadd 구조체의 크기
+    */
 	if (bind(sd, (struct sockaddr *)&servaddr, sizeof(servaddr)) < 0) {
 		perror("bind fail");  exit(1);
 	}
