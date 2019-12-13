@@ -29,6 +29,7 @@ int main(int argc, char *argv[]) {
 	fd_set read_fds;
 	time_t ct;
 	struct tm tm;
+	int count=0;
 
     // argc[0]: 실행 파일 명, argc[1]: 서버 ip, argc[2]: 포트 번호, argc[3]: 사용자 이름  -> argc 개수가 4개가 아니면 실행 방법 알림
 	if (argc != 4) {

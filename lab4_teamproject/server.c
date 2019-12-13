@@ -128,9 +128,9 @@ int main(int argc, char *argv[]) {
 
 				printf("\033[0G");		//커서의 X좌표를 0으로 이동
 				fprintf(stderr, "\033[97m");//글자색을 흰색으로 변경
-				printf("%s", buf);			//메시지 출력
+				//printf("%s", buf);			//메시지 출력
 				fprintf(stderr, "\033[32m");//글자색을 녹색으로 변경
-				fprintf(stderr, "server>"); //커서 출력
+				//fprintf(stderr, "server>"); //커서 출력
             }
         }
     }
