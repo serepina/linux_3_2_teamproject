@@ -11,10 +11,11 @@
 #include <arpa/inet.h>
 #include <time.h>
 
-#define MAXLINE     1000
+#define MAXLINE     511
 #define NAME_LEN    20
 
 char *EXIT_STRING = "exit";
+char *FILE_STRING = "get";
 // 소켓 생성 및 서버 연결, 생성된 소켓리턴
 int tcp_connect(int af, char *servip, unsigned short port);
 void errquit(char *mesg) { perror(mesg); exit(1); }
@@ -30,6 +31,12 @@ int main(int argc, char *argv[]) {
 	time_t ct;
 	struct tm tm;
 	int count=0;
+	char filename[MAXLINE]; // ＊ 추가 ＊
+	char temp[20];		// ＊ 추가 ＊
+	char buf[100];		// ＊ 추가 ＊
+	int size;		// ＊ 추가 ＊
+	int filehandle;		// ＊ 추가 ＊
+	char *f;		// ＊ 추가 ＊
 
     // argc[0]: 실행 파일 명, argc[1]: 서버 ip, argc[2]: 포트 번호, argc[3]: 사용자 이름  -> argc 개수가 4개가 아니면 실행 방법 알림
 	if (argc != 4) {
@@ -63,11 +70,38 @@ int main(int argc, char *argv[]) {
 		if (FD_ISSET(s, &read_fds)) { // read_fds중 소켓 s에 해당하는 비트가 세트되어 있으면 양수값인 slisten_socket를 리턴
 			int nbyte;
 			if ((nbyte = recv(s, bufmsg, MAXLINE, 0)) > 0) {    // 소켓으로 부터 데이터 읽음
-				bufmsg[nbyte] = 0;
-				write(1, "\033[0G", 4);		//커서의 X좌표를 0으로 이동
-				printf("%s", bufmsg);		//메시지 출력
-				fprintf(stderr, "\033[1;32m");	//글자색을 녹색으로 변경
-				fprintf(stderr, "%s>", argv[3]);//내 닉네임 출력
+				if(strstr(bufmsg, FILE_STRING) != NULL){	// ＊ 추가 ＊	
+					bufmsg[nbyte] = 0;
+					printf("다운로드할 파일 : ");
+					scanf("%s", filename);
+					fgets(temp, MAXLINE, stdin);
+					strcpy(buf, "get ");
+					strcat(buf, filename);
+					send(s, buf, 100, 0);
+					recv(s, &size, sizeof(int), 0);
+					if (!size) {
+						printf("파일이 없습니다\n");
+						continue;
+					}
+					f = malloc(size);
+					recv(s, f, size, 0);
+					while (1) {
+						filehandle = open(filename, O_CREAT | O_EXCL | O_WRONLY, 0666);
+						if (filehandle == -1) //같은 이름이 있다면 이름 끝에 _1 추가
+							sprintf(filename + strlen(filename), "_1");
+						else break;
+					}
+					write(filehandle, f, size);
+					close(filehandle);
+					printf("다운로드 완료\n");		// ＊ 추가 ＊
+				}
+				else{
+					bufmsg[nbyte] = 0;
+					write(1, "\033[0G", 4);		//커서의 X좌표를 0으로 이동
+					printf("%s", bufmsg);		//메시지 출력
+					fprintf(stderr, "\033[1;32m");	//글자색을 녹색으로 변경
+					fprintf(stderr, "%s>", argv[3]);//내 닉네임 출력
+				}
 
 			}
 		}
