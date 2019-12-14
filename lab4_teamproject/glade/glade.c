@@ -10,6 +10,8 @@ struct _Data {
 	GtkWidget *ename;
 	GtkWidget *econtent;
 	GtkWidget *labeltitle;
+	GtkWidget *textview1;            
+	GtkTextBuffer *textbuffer1;
 }; 
 
 // entry set: gtk_entry_set_text(GTK_ENTRY(data->ResultEntry),result_stringadd);
@@ -24,6 +26,7 @@ G_MODULE_EXPORT void on_bsend_clicked(GtkButton *button, Data *data) {
 	//gtk_label_set_text(GTK_LABEL(data->labeltitle), "SEND가 클릭됨!");
 	const char *econtent = gtk_entry_get_text(GTK_ENTRY(data->econtent));
 	printf("%s \n",econtent);
+	gtk_text_buffer_set_text(data->textbuffer1, econtent, -1);
 }
 
 G_MODULE_EXPORT void on_bconnect_clicked(GtkButton *button, Data *data) {
@@ -61,6 +64,8 @@ int main (int argc, char *argv[]) {
 	data->ename = GTK_WIDGET(gtk_builder_get_object (builder, "ename"));
 	data->econtent = GTK_WIDGET(gtk_builder_get_object (builder, "econtent"));
 	data->labeltitle = GTK_WIDGET(gtk_builder_get_object (builder, "labeltitle"));
+	data->textview1 = GTK_WIDGET(gtk_builder_get_object(builder, "textview1"));
+	data->textbuffer1 = GTK_TEXT_BUFFER(gtk_builder_get_object(builder, "textbuffer1"));
 	
 	//input_ip = gtk_entry_get_text(eip);
 	//input_port = gtk_entry_get_text(eport);
