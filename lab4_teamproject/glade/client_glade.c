@@ -33,10 +33,12 @@ char buf[100];		// ＊ 추가 ＊
 int size;		// ＊ 추가 ＊
 int filehandle;		// ＊ 추가 ＊
 char *f;		// ＊ 추가 ＊
+pthread_t a_thread;	// ＊ 추가 ＊
+char *name;		// ＊ 추가 ＊
 // 소켓 생성 및 서버 연결, 생성된 소켓리턴
-int tcp_connect(int af, char *servip, unsigned short port);
+int tcp_connect(int af, char *servip, int port);
 void errquit(char *mesg) { perror(mesg); exit(1); }
-
+void *thread_function(void *arg);
 
 typedef struct _Data Data;
 struct _Data {
@@ -72,9 +74,13 @@ G_MODULE_EXPORT void on_bconnect_clicked(GtkButton *button, Data *data) {
 	const char *eport = gtk_entry_get_text(GTK_ENTRY(data->eport));
 	const char *eip = gtk_entry_get_text(GTK_ENTRY(data->eip));
 	const char *ename = gtk_entry_get_text(GTK_ENTRY(data->ename));
-	s = tcp_connect(AF_INET, eip, eport); // 소켓 연결 요청 수행
+	int port;	
+	port=atoi(eport);
+	s = tcp_connect(AF_INET, eip, port); // 소켓 연결 요청 수행
 	maxsocket1 = s + 1;
 	FD_ZERO(&read_fds); // read_fds의 모든 소켓을 0으로 초기화
+	pthread_create(&a_thread, NULL, thread_function, (void *)NULL);
+	name = ename;
 }
 
 int main (int argc, char *argv[]) { 
@@ -82,10 +88,6 @@ int main (int argc, char *argv[]) {
 	GError *error = NULL;
 	Data *data; 
 	gtk_init (&argc, &argv);
-	const char *input_ip = (const char *)malloc(20);
-	const char *input_port = (const char *)malloc(20);
-	const char *input_name = (const char *)malloc(20);
-	const char *input_connect = (const char *)malloc(20);
 
 	/* 빌더 생성 및 UI 파일 열기 */
 	builder = gtk_builder_new ();
@@ -106,14 +108,6 @@ int main (int argc, char *argv[]) {
 	data->labeltitle = GTK_WIDGET(gtk_builder_get_object (builder, "labeltitle"));
 	data->textview1 = GTK_WIDGET(gtk_builder_get_object(builder, "textview1"));
 	data->textbuffer1 = GTK_TEXT_BUFFER(gtk_builder_get_object(builder, "textbuffer1"));
-	
-	//input_ip = gtk_entry_get_text(eip);
-	//input_port = gtk_entry_get_text(eport);
-	//input_name = gtk_entry_get_text(ename);
-	//input_connect = gtk_entry_get_text(econtent);
-
-	//input1_int = atoi(input_ip); // String to Integer Conversion
-	//input2_int = atoi(input_port);
 
 	gtk_builder_connect_signals (builder, data);
 	g_object_unref(G_OBJECT(builder));
@@ -123,7 +117,73 @@ int main (int argc, char *argv[]) {
 	return (0);
 }
 
-int tcp_connect(int af, char *servip, unsigned short port) {
+void *thread_function(void *arg){
+
+	while (1) {
+		FD_SET(0, &read_fds); // I/O 변화를 감지할 소켓 선택
+		FD_SET(s, &read_fds);
+
+		if (select(maxsocket1, &read_fds, NULL, NULL, NULL) < 0)
+			errquit("select fail");
+		if (FD_ISSET(s, &read_fds)) { // read_fds중 소켓 s에 해당하는 비트가 세트되어 있으면 양수값인 slisten_socket를 리턴
+			int nbyte;
+			if ((nbyte = recv(s, bufmsg, MAXLINE, 0)) > 0) {    // 소켓으로 부터 데이터 읽음
+				if(strstr(bufmsg, FILE_STRING) != NULL){	// ＊ 추가 ＊	
+					bufmsg[nbyte] = 0;
+					printf("다운로드할 파일 : ");
+					scanf("%s", filename);
+					fgets(temp, MAXLINE, stdin);
+					strcpy(buf, "get ");
+					strcat(buf, filename);
+					send(s, buf, 100, 0);
+					recv(s, &size, sizeof(int), 0);
+					if (!size) {
+						printf("파일이 없습니다\n");
+						continue;
+					}
+					f = malloc(size);
+					recv(s, f, size, 0);
+					while (1) {
+						filehandle = open(filename, O_CREAT | O_EXCL | O_WRONLY, 0666);
+						if (filehandle == -1) //같은 이름이 있다면 이름 끝에 _1 추가
+							sprintf(filename + strlen(filename), "_1");
+						else break;
+					}
+					write(filehandle, f, size);
+					close(filehandle);
+					printf("다운로드 완료\n");		// ＊ 추가 ＊
+				}
+				else{
+					bufmsg[nbyte] = 0;
+					write(1, "\033[0G", 4);		//커서의 X좌표를 0으로 이동
+					printf("%s", bufmsg);		//메시지 출력
+					fprintf(stderr, "\033[1;32m");	//글자색을 녹색으로 변경
+					fprintf(stderr, "%s>", name);//내 닉네임 출력
+				}
+
+			}
+		}
+		if (FD_ISSET(0, &read_fds)) {
+			if (fgets(bufmsg, MAXLINE, stdin)) {
+				fprintf(stderr, "\033[1;33m"); //글자색을 노란색으로 변경
+				fprintf(stderr, "\033[1A"); //Y좌표를 현재 위치로부터 -1만큼 이동
+				ct = time(NULL);	//현재 시간을 받아옴
+				tm = *localtime(&ct);
+				sprintf(bufall, "[%02d:%02d:%02d]%s>%s", tm.tm_hour, tm.tm_min, tm.tm_sec, name, bufmsg);
+
+                if (send(s, bufall, strlen(bufall), 0) < 0)
+					puts("Error : Write error on socket.");
+				if (strstr(bufmsg, EXIT_STRING) != NULL) {
+					puts("Good bye.");
+					close(s);
+					exit(0);
+				}
+			}
+		}
+	}
+}
+
+int tcp_connect(int af, char *servip, int port) {
 	struct sockaddr_in servaddr;
 	int  s;
 	// 소켓 생성
@@ -135,8 +195,7 @@ int tcp_connect(int af, char *servip, unsigned short port) {
 	inet_pton(AF_INET, servip, &servaddr.sin_addr);
 	servaddr.sin_port = htons(port);
 	// 연결요청
-	if (connect(s, (struct sockaddr *)&servaddr, sizeof(servaddr))
-		< 0)
+	if (connect(s, (struct sockaddr *)&servaddr, sizeof(servaddr)) < 0)
 		return -1;
 	return s;
 }
