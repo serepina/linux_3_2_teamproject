@@ -35,6 +35,8 @@ int filehandle;		// ＊ 추가 ＊
 char *f;		// ＊ 추가 ＊
 pthread_t a_thread;	// ＊ 추가 ＊
 char *name;		// ＊ 추가 ＊
+char msg[511];
+int is_msg = 0;
 // 소켓 생성 및 서버 연결, 생성된 소켓리턴
 int tcp_connect(int af, char *servip, int port);
 void errquit(char *mesg) { perror(mesg); exit(1); }
@@ -54,6 +56,10 @@ struct _Data {
 	GtkTextBuffer *textbuffer1;
 }; 
 
+GtkBuilder *builder;
+GError *error = NULL;
+Data *data; 
+
 // entry set: gtk_entry_set_text(GTK_ENTRY(data->ResultEntry),result_stringadd);
 // entry get: const char *entrytemp=gtk_entry_get_text(GTK_ENTRY(data->ResultEntry));
 // label set: gtk_label_set_text(GTK_LABEL(data->label), "CONNECT가 클릭됨!");
@@ -65,8 +71,16 @@ G_MODULE_EXPORT void quit(GtkWidget *window, gpointer data) {
 G_MODULE_EXPORT void on_bsend_clicked(GtkButton *button, Data *data) {
 	//gtk_label_set_text(GTK_LABEL(data->labeltitle), "SEND가 클릭됨!");
 	const char *econtent = gtk_entry_get_text(GTK_ENTRY(data->econtent));
-	printf("%s \n",econtent);
-	gtk_text_buffer_set_text(data->textbuffer1, econtent, -1);
+	strcpy(bufmsg," ");
+	strcpy(bufmsg,econtent);
+	gtk_text_buffer_new(NULL);
+	ct = time(NULL);	//현재 시간을 받아옴
+	tm = *localtime(&ct);
+	sprintf(bufall, "[%02d:%02d:%02d]%s>%s", tm.tm_hour, tm.tm_min, tm.tm_sec, name, bufmsg);
+
+	if (send(s, bufall, strlen(bufall), 0) < 0)
+		puts("Error : Write error on socket.");
+
 }
 
 G_MODULE_EXPORT void on_bconnect_clicked(GtkButton *button, Data *data) {
@@ -84,9 +98,7 @@ G_MODULE_EXPORT void on_bconnect_clicked(GtkButton *button, Data *data) {
 }
 
 int main (int argc, char *argv[]) { 
-	GtkBuilder *builder;
-	GError *error = NULL;
-	Data *data; 
+
 	gtk_init (&argc, &argv);
 
 	/* 빌더 생성 및 UI 파일 열기 */
@@ -128,6 +140,9 @@ void *thread_function(void *arg){
 		if (FD_ISSET(s, &read_fds)) { // read_fds중 소켓 s에 해당하는 비트가 세트되어 있으면 양수값인 slisten_socket를 리턴
 			int nbyte;
 			if ((nbyte = recv(s, bufmsg, MAXLINE, 0)) > 0) {    // 소켓으로 부터 데이터 읽음
+				gtk_text_buffer_new(NULL);
+				printf(bufmsg);
+				gtk_text_buffer_set_text(data->textbuffer1, bufmsg, -1);
 				if(strstr(bufmsg, FILE_STRING) != NULL){	// ＊ 추가 ＊	
 					bufmsg[nbyte] = 0;
 					printf("다운로드할 파일 : ");
@@ -160,26 +175,9 @@ void *thread_function(void *arg){
 					fprintf(stderr, "\033[1;32m");	//글자색을 녹색으로 변경
 					fprintf(stderr, "%s>", name);//내 닉네임 출력
 				}
-
 			}
 		}
-		if (FD_ISSET(0, &read_fds)) {
-			if (fgets(bufmsg, MAXLINE, stdin)) {
-				fprintf(stderr, "\033[1;33m"); //글자색을 노란색으로 변경
-				fprintf(stderr, "\033[1A"); //Y좌표를 현재 위치로부터 -1만큼 이동
-				ct = time(NULL);	//현재 시간을 받아옴
-				tm = *localtime(&ct);
-				sprintf(bufall, "[%02d:%02d:%02d]%s>%s", tm.tm_hour, tm.tm_min, tm.tm_sec, name, bufmsg);
 
-                if (send(s, bufall, strlen(bufall), 0) < 0)
-					puts("Error : Write error on socket.");
-				if (strstr(bufmsg, EXIT_STRING) != NULL) {
-					puts("Good bye.");
-					close(s);
-					exit(0);
-				}
-			}
-		}
 	}
 }
 

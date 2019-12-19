@@ -64,11 +64,7 @@ struct _Data {
 	GtkWidget *labelmenu;
 	GtkWidget *textview1;            
 	GtkTextBuffer *textbuffer1;
-}; 
-
-// entry set: gtk_entry_set_text(GTK_ENTRY(data->ResultEntry),result_stringadd);
-// entry get: const char *entrytemp=gtk_entry_get_text(GTK_ENTRY(data->ResultEntry));
-// label set: gtk_label_set_text(GTK_LABEL(data->label), "CONNECT가 클릭됨!");
+};
 
 G_MODULE_EXPORT void quit(GtkWidget *window, gpointer data) {
 	gtk_main_quit ();
@@ -300,7 +296,7 @@ int getmax() {
 }
 
 // listen 소켓 생성 및 listen
-int  tcp_listen(int host, int port, int backlog) {
+int tcp_listen(int host, int port, int backlog) {
 	int sd;
 	struct sockaddr_in servaddr;
 
